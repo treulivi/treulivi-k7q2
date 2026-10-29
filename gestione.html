@@ -134,7 +134,7 @@ const unb64 = s => decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
 const errText = r => r.status===401 ? "Il codice non è valido o è scaduto." : r.status===403 ? "Il codice non ha il permesso di modificare. Rifallo con 'Contents: Read and write'." : r.status===404 ? "Non trovo il repository o il file serata.txt." : r.status===409||r.status===422 ? "Qualcuno ha cambiato il file. Ricarica la pagina e riprova." : "Errore "+r.status+".";
 
 async function load(){
-  $("#setup").hidden = true; $("#main").hidden = false; $("#menuCard").hidden = false; $("#avvCard").hidden = false; $("#impCard").hidden = false; $("#cntCard").hidden = false; loadAvv(); $("#now").textContent = "Controllo la serata attuale…"; $("#m2").className="msg"; $("#m2").textContent="";
+  $("#setup").hidden = true; $("#main").hidden = false; $("#menuCard").hidden = false; $("#avvCard").hidden = false; $("#impCard").hidden = false; loadAvv(); $("#now").textContent = "Controllo la serata attuale…"; $("#m2").className="msg"; $("#m2").textContent="";
   try {
     const r = await api("GET");
     if (!r.ok) { $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = errText(r); if (r.status===401){ showSetup("Il codice non è valido. Inseriscilo di nuovo."); } return; }
