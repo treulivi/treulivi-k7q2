@@ -46,6 +46,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .board h1{font-size:clamp(28px,8vw,38px);font-weight:800;line-height:1.05}
 .board p{margin:0;opacity:.85;font-size:14.5px}
 
+.avviso{background:var(--olive-soft);border:2px solid var(--olive);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.avviso .tag{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--olive)}
+.avviso p{margin:0;font-size:18px;font-weight:700;white-space:pre-line}
 .event{background:var(--oven-soft);border:1px solid var(--oven);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:4px}
 .event .tag{align-self:flex-start;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--oven)}
 .event h2{font-size:21px;line-height:1.15}
@@ -114,6 +117,8 @@ textarea{min-height:70px;resize:vertical}
     <span class="ad">Via Santa Lucia, 88 – 87047 San Pietro in Guarano (CS)</span><a id="mappa" class="btn2 main" target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=Via+Santa+Lucia+88+87047+San+Pietro+in+Guarano+CS">Come arrivare</a></div>
   </header>
 
+  <section class="avviso" id="avviso" hidden aria-live="polite"><span class="tag">Avviso</span><p id="avvisoTesto"></p></section>
+
   <section class="event" id="event" hidden>
     <span class="tag">Serata gastronomica</span>
     <label class="lab" for="serataPick" id="pickLab" hidden>Scegli la serata</label>
@@ -121,7 +126,7 @@ textarea{min-height:70px;resize:vertical}
     <h2 id="evTitle"></h2>
     <div id="evWhen" class="note" style="margin:0;font-weight:700;text-transform:capitalize" hidden></div>
     <p id="evText"></p>
-    <label style="display:flex;align-items:center;gap:12px;margin-top:8px;font-size:16px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" id="quar" checked style="width:26px;height:26px;accent-color:var(--oven);flex:none"><span>Mi segno nell'elenco della serata <span id="quarNome"></span></span></label>
+    <p id="evHow" style="margin:6px 0 0;font-weight:700">Per prenotarti scrivi il tuo nome e quante persone, poi tocca "Prepara il messaggio".</p>
   </section>
 
   <section class="card" aria-labelledby="h-dove">
@@ -130,7 +135,7 @@ textarea{min-height:70px;resize:vertical}
       <button type="button" id="sEv" aria-pressed="false"></button>
     </div>
     <h2 id="h-dove">Come vuoi mangiare?</h2>
-    <div class="seg" role="group" aria-label="Tipo di ordine" style="align-self:flex-start">
+    <div class="seg" id="tipoSeg" role="group" aria-label="Tipo di ordine" style="align-self:flex-start">
       <button type="button" id="tLoc" aria-pressed="true">Al locale</button>
       <button type="button" id="tAsp" aria-pressed="false">Porto via</button>
       <button type="button" id="tCons" aria-pressed="false">Consegna a casa</button>
@@ -138,8 +143,8 @@ textarea{min-height:70px;resize:vertical}
     <p class="note" id="modoNote" style="margin:0"></p>
     <div class="fields">
       <div class="field full"><label for="nome">Il tuo nome</label><input id="nome" type="text" autocomplete="name" placeholder="Mario Rossi"></div>
-      <div class="field"><label for="data">Giorno</label><input id="data" type="date"></div>
-      <div class="field"><label for="ora" id="oraLab">Ora</label><select id="ora"></select></div>
+      <div class="field" id="dataField"><label for="data">Giorno</label><input id="data" type="date"></div>
+      <div class="field" id="oraField"><label for="ora" id="oraLab">Ora</label><select id="ora"></select></div>
       <div class="field full" id="indBox" hidden><label for="indirizzo">Indirizzo di consegna</label><input id="indirizzo" type="text" autocomplete="street-address" placeholder="Via, numero, paese"></div>
       <div class="field full" id="persBox"><span class="lab">Quante persone</span>
         <span class="stepper" style="align-self:flex-start"><button type="button" id="pMeno" aria-label="Una persona in meno" disabled>−</button><output id="pers">1</output><button type="button" id="pPiu" aria-label="Una persona in più">+</button></span></div>
@@ -148,7 +153,7 @@ textarea{min-height:70px;resize:vertical}
     <div class="err" id="err" role="alert"></div>
   </section>
 
-  <section class="card" aria-labelledby="h-menu">
+  <section class="card" id="menuCard" aria-labelledby="h-menu">
     <h2 id="h-menu">Cosa vuoi mangiare?</h2>
     <p class="note" id="menuNote" style="margin:0">Tocca il + per aggiungere un piatto.</p>
     <div id="menu"></div>
@@ -278,7 +283,7 @@ function renderSlots(){
   const arr = asporto ? CONFIG.turniAsporto : CONFIG.turniLocale, cur = $("#ora").value;
   $("#ora").innerHTML = '<option value="">Scegli</option>' + arr.map(o=>`<option${o===cur?" selected":""}>${o}</option>`).join("");
   $("#oraLab").textContent = consegna ? "Ora di consegna" : asporto ? "Ora di ritiro" : "Ora";
-  $("#persBox").hidden = asporto; $("#indBox").hidden = !consegna;
+  $("#persBox").hidden = asporto && !evento; $("#indBox").hidden = !consegna || evento;
 }
 function renderMode(){
   $("#tLoc").setAttribute("aria-pressed", !asporto); $("#tAsp").setAttribute("aria-pressed", asporto && !consegna); $("#tCons").setAttribute("aria-pressed", consegna);
@@ -290,14 +295,17 @@ function renderMode(){
   $("#serataPick").hidden = $("#pickLab").hidden = lista.length < 2;
   $("#serataSel").hidden = !lista.length; $("#sEv").textContent = "Serata gastronomica";
   $("#sNorm").setAttribute("aria-pressed", !evento); $("#sEv").setAttribute("aria-pressed", evento);
-  $("#event").hidden = !evento; $("#quarNome").textContent = serataScelta; $("#quar").checked = true;
+  $("#event").hidden = !evento;
+  ["#tipoSeg","#modoNote","#dataField","#oraField","#menuCard"].forEach(k => $(k).hidden = evento);
+  document.querySelector(".tot").hidden = evento; $("#h-dove").textContent = evento ? "Prenota un posto" : "Come vuoi mangiare?";
+  $("#persBox").hidden = asporto && !evento; $("#indBox").hidden = !consegna || evento;
   $("#evTitle").textContent = serataScelta; $("#evWhen").textContent = CONFIG.evento.quando; $("#evWhen").hidden = !CONFIG.evento.quando; $("#evText").textContent = CONFIG.evento.testo; $("#evText").hidden = !CONFIG.evento.testo;
   $("#menuNote").textContent = "Tocca il + per aggiungere un piatto.";
   $("#result").hidden = true;
 }
-$("#serataPick").onchange = e => { serataScelta = e.target.value; $("#evTitle").textContent = serataScelta; $("#quarNome").textContent = serataScelta; };
+$("#serataPick").onchange = e => { serataScelta = e.target.value; $("#evTitle").textContent = serataScelta; };
 $("#sNorm").onclick = () => { if (evento){ evento=false; qty={}; renderMode(); renderMenu(); } };
-$("#sEv").onclick = () => { if (!evento){ evento=true; qty={}; renderMode(); renderMenu(); } };
+$("#sEv").onclick = () => { if (!evento){ evento=true; asporto=false; consegna=false; qty={}; renderMode(); renderMenu(); } };
 $("#tLoc").onclick = () => { asporto=false; consegna=false; renderMode(); renderSlots(); total(); };
 $("#tAsp").onclick = () => { asporto=true; consegna=false; renderMode(); renderSlots(); total(); };
 $("#tCons").onclick = () => { asporto=true; consegna=true; renderMode(); renderSlots(); total(); };
@@ -310,8 +318,14 @@ $("#menu").addEventListener("click", e => {
 });
 
 function message(){
+  if (evento) {
+    const E = [`*Prenotazione serata ${CONFIG.nome}*`, `*Serata gastronomica:* ${serataScelta}`];
+    if (CONFIG.evento.quando) E.push(`*Quando:* ${CONFIG.evento.quando}`);
+    E.push(`*Nome:* ${$("#nome").value.trim()}`, `*Persone:* ${persone}`);
+    const nn = $("#note").value.trim(); if (nn) E.push("", `*Note:* ${nn}`);
+    return E.join("\n");
+  }
   const L = [`*Prenotazione ${CONFIG.nome}*`];
-  if (evento) L.push(`*Serata gastronomica ${serataScelta}${CONFIG.evento.quando ? " (" + CONFIG.evento.quando + ")" : ""}:* ${$("#quar").checked ? "mi segno nell'elenco" : "non partecipo alla serata"}`);
   L.push(`*Tipo:* ${consegna ? "Consegna a casa" : asporto ? "Porto via" : "Al locale"}`, `*Nome:* ${$("#nome").value.trim()}`,
     `*Giorno:* ${longDate($("#data").value)}`, `*${consegna?"Ora di consegna":asporto?"Ora di ritiro":"Ora"}:* ${$("#ora").value}`);
   if (consegna) L.push(`*Indirizzo:* ${$("#indirizzo").value.trim()}`);
@@ -326,11 +340,15 @@ $("#go").onclick = () => {
   const err = $("#err"); err.textContent = "";
   const d = $("#data").value, [y,m,dd] = (d||"").split("-").map(Number);
   if (!$("#nome").value.trim()) return fail("Scrivi il tuo nome.", "#nome");
+  if (evento) return mostra();
   if (!d) return fail("Scegli il giorno.", "#data");
   if (d < isoToday()) return fail("Il giorno scelto è già passato.", "#data");
   if (CONFIG.giorniChiusi.includes(new Date(y,m-1,dd).getDay())) return fail("Quel giorno il locale è chiuso. Scegline un altro.", "#data");
   if (!$("#ora").value) return fail(consegna ? "Scegli l'ora di consegna." : asporto ? "Scegli l'ora di ritiro." : "Scegli l'ora.", "#ora");
   if (consegna && !$("#indirizzo").value.trim()) return fail("Scrivi l'indirizzo di consegna.", "#indirizzo");
+  mostra();
+};
+function mostra(){
   const msg = message();
   $("#preview").textContent = msg;
   const demo = false;
@@ -339,7 +357,7 @@ $("#go").onclick = () => {
     ? "Questa è una prova: il messaggio arriva al numero di prova. Nella versione vera arriva al locale. Premi Apri WhatsApp, poi Invia."
     : "Premi il pulsante verde Apri WhatsApp, poi premi Invia. La prenotazione vale quando il locale ti risponde.";
   $("#result").hidden = false; $("#result").scrollIntoView({behavior:"smooth",block:"start"});
-};
+}
 function fail(t, sel){ $("#err").textContent = t; const el=$(sel); el.focus({preventScroll:false}); el.scrollIntoView({block:"center"}); }
 $("#copy").onclick = async () => {
   const t = $("#preview").textContent; let ok = false;
@@ -369,6 +387,12 @@ fetch("menu.json?" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.json() :
   CONFIG.menu = m;
   const ids = new Set(allDishes().map(p => p.id)); Object.keys(qty).forEach(k => { if (!ids.has(k) || allDishes().find(p => p.id === k).esaurito) delete qty[k]; });
   renderMenu();
+}).catch(() => {});
+/* L'avviso (es. una serata speciale tra qualche giorno) si scrive dalla pagina di gestione: file avviso.json con testo e, se vuoi, data di scadenza. */
+fetch("avviso.json?" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.json() : null).then(a => {
+  if (!a || typeof a.testo !== "string" || !a.testo.trim()) return;
+  if (a.fino && /^\d{4}-\d{2}-\d{2}$/.test(a.fino) && a.fino < isoToday()) return;
+  $("#avvisoTesto").textContent = a.testo.trim(); $("#avviso").hidden = false;
 }).catch(() => {});
 fetch("serata.txt?" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.text() : null).then(t => {
   if (t === null || /<\s*html/i.test(t)) return;
