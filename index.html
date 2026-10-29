@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=DM+Sans:wght@400;500;700&display=swap">
 <style>
+[hidden]{display:none!important}
 /* Idea: lavagna del locale. Testata verde scuro come una lavagna col gesso, il resto su carta chiara; il rosso forno compare solo per le serate speciali. */
 :root{
   --bg:#f3f5ef; --surface:#ffffff; --ink:#1c2a21; --muted:#5c6a60; --line:#d9dfd3;
@@ -73,6 +74,8 @@ textarea{min-height:70px;resize:vertical}
 .dish .d{grid-column:1;font-size:13.5px;color:var(--muted)}
 .dish .p{font-variant-numeric:tabular-nums;font-weight:700;grid-column:1;font-size:14px}
 .dish .stepper{grid-column:2;grid-row:1/4;align-self:center}
+.dish.off{opacity:.55}
+.dish.off .n::after{content:" · esaurito";font-weight:600;color:var(--muted)}
 .dish.on .n::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--olive);margin-right:8px}
 
 .bar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
@@ -116,6 +119,7 @@ textarea{min-height:70px;resize:vertical}
     <label class="lab" for="serataPick" id="pickLab" hidden>Scegli la serata</label>
     <select id="serataPick" hidden></select>
     <h2 id="evTitle"></h2>
+    <div id="evWhen" class="note" style="margin:0;font-weight:700;text-transform:capitalize" hidden></div>
     <p id="evText"></p>
     <label style="display:flex;align-items:center;gap:12px;margin-top:8px;font-size:16px;font-weight:700;color:var(--ink);cursor:pointer"><input type="checkbox" id="quar" checked style="width:26px;height:26px;accent-color:var(--oven);flex:none"><span>Mi segno nell'elenco della serata <span id="quarNome"></span></span></label>
   </section>
@@ -129,13 +133,16 @@ textarea{min-height:70px;resize:vertical}
     <div class="seg" role="group" aria-label="Tipo di ordine" style="align-self:flex-start">
       <button type="button" id="tLoc" aria-pressed="true">Al locale</button>
       <button type="button" id="tAsp" aria-pressed="false">Porto via</button>
+      <button type="button" id="tCons" aria-pressed="false">Consegna a casa</button>
     </div>
+    <p class="note" id="modoNote" style="margin:0"></p>
     <div class="fields">
       <div class="field full"><label for="nome">Il tuo nome</label><input id="nome" type="text" autocomplete="name" placeholder="Mario Rossi"></div>
       <div class="field"><label for="data">Giorno</label><input id="data" type="date"></div>
       <div class="field"><label for="ora" id="oraLab">Ora</label><select id="ora"></select></div>
+      <div class="field full" id="indBox" hidden><label for="indirizzo">Indirizzo di consegna</label><input id="indirizzo" type="text" autocomplete="street-address" placeholder="Via, numero, paese"></div>
       <div class="field full" id="persBox"><span class="lab">Quante persone</span>
-        <span class="stepper" style="align-self:flex-start"><button type="button" id="pMeno" aria-label="Una persona in meno">−</button><output id="pers">2</output><button type="button" id="pPiu" aria-label="Una persona in più">+</button></span></div>
+        <span class="stepper" style="align-self:flex-start"><button type="button" id="pMeno" aria-label="Una persona in meno" disabled>−</button><output id="pers">1</output><button type="button" id="pPiu" aria-label="Una persona in più">+</button></span></div>
       <div class="field full"><label for="note">Note (allergie, compleanno…)</label><textarea id="note" placeholder="Facoltative"></textarea></div>
     </div>
     <div class="err" id="err" role="alert"></div>
@@ -143,7 +150,7 @@ textarea{min-height:70px;resize:vertical}
 
   <section class="card" aria-labelledby="h-menu">
     <h2 id="h-menu">Cosa vuoi mangiare?</h2>
-    <p class="note" id="menuNote" style="margin:0">Tocca il più per aggiungere. Non devi scrivere niente.</p>
+    <p class="note" id="menuNote" style="margin:0">Tocca il + per aggiungere un piatto.</p>
     <div id="menu"></div>
   </section>
 
@@ -153,7 +160,6 @@ textarea{min-height:70px;resize:vertical}
     <div class="preview" id="preview"></div>
     <div style="display:flex;flex-wrap:wrap;gap:10px">
       <a class="btn2 main" id="wa" href="#" target="_blank" rel="noopener">Apri WhatsApp</a>
-      <a class="btn2" id="wa2" href="#" target="_blank" rel="noopener">Invia anche al secondo numero</a>
       <button class="btn2" type="button" id="copy">Copia il messaggio</button>
     </div>
     <p class="note" style="margin:0" id="copied" hidden>Messaggio copiato.</p>
@@ -176,7 +182,7 @@ textarea{min-height:70px;resize:vertical}
 </div>
 
 <div class="bar"><div class="bar-in">
-  <div class="tot"><span id="totLab">Totale ordine</span><b id="tot">0,00 €</b></div>
+  <div class="tot"><span id="totLab">Totale ordine</span><b id="tot">0,00 €</b><small id="totCop" style="font-size:12px;color:var(--muted)" hidden></small></div>
   <button class="go" type="button" id="go">Prepara il messaggio</button>
 </div></div>
 
@@ -188,8 +194,9 @@ const CONFIG = {
   whatsapp2: "",              // numero del locale, con prefisso e senza +
   giorniChiusi: [],                      // 0 = domenica, 1 = lunedì ...
   maxPersone: 12,
-  turniLocale: ["19:30","20:00","20:30","21:00","21:30"],
+  turniLocale: ["19:30","20:00","20:30","21:00","21:30","22:00","22:30","23:00"],
   turniAsporto: ["18:30","18:45","19:00","19:15","19:30","19:45","20:00","20:15","20:30","20:45","21:00","21:15","21:30"],
+  consegna: 1,                            // euro in più per ogni pizza consegnata a casa
   coperto: 1,                             // euro a persona, solo "Al locale"
   menu: [
     {sezione:"Pizze", piatti:[
@@ -238,6 +245,7 @@ const CONFIG = {
   evento: {
     // Serata di stasera: la sceglie il locale scrivendola nel file serata.txt (una riga). Qui c'è il valore di riserva.
     serate: ["A Quarara"],
+    quando: "",
     // Idee di serata del locale (per il proprietario): A Quarara, Spezzatino, Panzerotti, Agnello, Porchetta, Coccia, Baccalà
     testo: "",
     menu: null,                    // null = stesso menu del ristorante; oppure un elenco di sezioni solo per la serata
@@ -247,7 +255,7 @@ const CONFIG = {
 
 const $ = s => document.querySelector(s);
 const eur = n => n.toLocaleString("it-IT",{style:"currency",currency:"EUR"});
-let evento = false, asporto = false, persone = 2, qty = {};
+let evento = false, asporto = false, consegna = false, persone = 1, qty = {};
 let serataScelta = "";
 const activeMenu = () => (evento && CONFIG.evento.menu) ? CONFIG.evento.menu : CONFIG.menu;
 const allDishes = () => activeMenu().flatMap(s=>s.piatti);
@@ -256,22 +264,25 @@ function isoToday(){ const d=new Date(); return new Date(d.getTime()-d.getTimezo
 function nextOpen(){ const d=new Date(); for(let i=0;i<8;i++){ if(!CONFIG.giorniChiusi.includes(d.getDay())) break; d.setDate(d.getDate()+1);} return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10); }
 function longDate(iso){ const [y,m,d]=iso.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("it-IT",{weekday:"long",day:"numeric",month:"long"}); }
 
+const nPizze = () => activeMenu().filter(s=>/pizz/i.test(s.sezione)).flatMap(s=>s.piatti).reduce((a,p)=>a+(qty[p.id]||0),0);
+function consegnaTot(){ return (consegna && CONFIG.consegna) ? nPizze()*CONFIG.consegna : 0; }
 function copertoTot(){ const n = allDishes().reduce((a,p)=>a+(qty[p.id]||0),0); return (!asporto && CONFIG.coperto && n>0) ? persone*CONFIG.coperto : 0; }
 function renderMenu(){
   $("#menu").innerHTML = activeMenu().map(s=>`<div class="sect"><h3>${s.sezione}</h3>${s.piatti.map(p=>`
-    <div class="dish${qty[p.id]?" on":""}" data-id="${p.id}"><span class="n">${p.nome}</span>${p.desc?`<span class="d">${p.desc}</span>`:""}<span class="p">${eur(p.prezzo)}</span>
-    <span class="stepper"><button type="button" data-d="-1" aria-label="Uno in meno: ${p.nome}"${qty[p.id]?"":" disabled"}>−</button><output>${qty[p.id]||0}</output><button type="button" data-d="1" aria-label="Uno in più: ${p.nome}">+</button></span></div>`).join("")}</div>`).join("");
+    <div class="dish${qty[p.id]?" on":""}${p.esaurito?" off":""}" data-id="${p.id}"><span class="n">${p.nome}</span>${p.desc?`<span class="d">${p.desc}</span>`:""}<span class="p">${eur(p.prezzo)}</span>
+    <span class="stepper"><button type="button" data-d="-1" aria-label="Uno in meno: ${p.nome}"${qty[p.id]?"":" disabled"}>−</button><output>${qty[p.id]||0}</output><button type="button" data-d="1" aria-label="Uno in più: ${p.nome}"${p.esaurito?" disabled":""}>+</button></span></div>`).join("")}</div>`).join("");
   total();
 }
-function total(){ const t = allDishes().reduce((a,p)=>a+(qty[p.id]||0)*p.prezzo,0) + copertoTot(); $("#tot").textContent = eur(t); return t; }
+function total(){ const t = allDishes().reduce((a,p)=>a+(qty[p.id]||0)*p.prezzo,0) + copertoTot() + consegnaTot(); $("#tot").textContent = eur(t); const c = copertoTot(), k = consegnaTot(); const parti = []; if (c) parti.push("coperto " + eur(c)); if (k) parti.push("consegna " + eur(k)); $("#totCop").hidden = !parti.length; $("#totCop").textContent = parti.length ? "di cui " + parti.join(" + ") : ""; return t; }
 function renderSlots(){
   const arr = asporto ? CONFIG.turniAsporto : CONFIG.turniLocale, cur = $("#ora").value;
   $("#ora").innerHTML = '<option value="">Scegli</option>' + arr.map(o=>`<option${o===cur?" selected":""}>${o}</option>`).join("");
-  $("#oraLab").textContent = asporto ? "Ora di ritiro" : "Ora";
-  $("#persBox").hidden = asporto;
+  $("#oraLab").textContent = consegna ? "Ora di consegna" : asporto ? "Ora di ritiro" : "Ora";
+  $("#persBox").hidden = asporto; $("#indBox").hidden = !consegna;
 }
 function renderMode(){
-  $("#tLoc").setAttribute("aria-pressed", !asporto); $("#tAsp").setAttribute("aria-pressed", asporto);
+  $("#tLoc").setAttribute("aria-pressed", !asporto); $("#tAsp").setAttribute("aria-pressed", asporto && !consegna); $("#tCons").setAttribute("aria-pressed", consegna);
+  $("#modoNote").textContent = consegna ? "Consegna a casa: " + eur(CONFIG.consegna) + " in più per ogni pizza." : asporto ? "Passi a ritirare al locale all'ora scelta." : "Coperto " + eur(CONFIG.coperto) + " a persona. Puoi anche solo prenotare il tavolo: i piatti si possono scegliere dopo, al locale.";
   const lista = CONFIG.evento.serate;
   if (!lista.includes(serataScelta)) serataScelta = lista[0] || "";
   if (!lista.length && evento) evento = false;
@@ -280,15 +291,16 @@ function renderMode(){
   $("#serataSel").hidden = !lista.length; $("#sEv").textContent = "Serata gastronomica";
   $("#sNorm").setAttribute("aria-pressed", !evento); $("#sEv").setAttribute("aria-pressed", evento);
   $("#event").hidden = !evento; $("#quarNome").textContent = serataScelta; $("#quar").checked = true;
-  $("#evTitle").textContent = serataScelta; $("#evText").textContent = CONFIG.evento.testo; $("#evText").hidden = !CONFIG.evento.testo;
-  $("#menuNote").textContent = "Tocca il più per aggiungere. Non devi scrivere niente.";
+  $("#evTitle").textContent = serataScelta; $("#evWhen").textContent = CONFIG.evento.quando; $("#evWhen").hidden = !CONFIG.evento.quando; $("#evText").textContent = CONFIG.evento.testo; $("#evText").hidden = !CONFIG.evento.testo;
+  $("#menuNote").textContent = "Tocca il + per aggiungere un piatto.";
   $("#result").hidden = true;
 }
 $("#serataPick").onchange = e => { serataScelta = e.target.value; $("#evTitle").textContent = serataScelta; $("#quarNome").textContent = serataScelta; };
 $("#sNorm").onclick = () => { if (evento){ evento=false; qty={}; renderMode(); renderMenu(); } };
 $("#sEv").onclick = () => { if (!evento){ evento=true; qty={}; renderMode(); renderMenu(); } };
-$("#tLoc").onclick = () => { asporto=false; renderMode(); renderSlots(); total(); };
-$("#tAsp").onclick = () => { asporto=true; renderMode(); renderSlots(); total(); };
+$("#tLoc").onclick = () => { asporto=false; consegna=false; renderMode(); renderSlots(); total(); };
+$("#tAsp").onclick = () => { asporto=true; consegna=false; renderMode(); renderSlots(); total(); };
+$("#tCons").onclick = () => { asporto=true; consegna=true; renderMode(); renderSlots(); total(); };
 $("#pMeno").onclick = () => { persone=Math.max(1,persone-1); $("#pers").textContent=persone; total(); $("#pMeno").disabled=persone<=1; $("#pPiu").disabled=false; };
 $("#pPiu").onclick = () => { persone=Math.min(CONFIG.maxPersone,persone+1); $("#pers").textContent=persone; total(); $("#pPiu").disabled=persone>=CONFIG.maxPersone; $("#pMeno").disabled=false; };
 $("#menu").addEventListener("click", e => {
@@ -299,12 +311,13 @@ $("#menu").addEventListener("click", e => {
 
 function message(){
   const L = [`*Prenotazione ${CONFIG.nome}*`];
-  if (evento) L.push(`*Serata gastronomica ${serataScelta}:* ${$("#quar").checked ? "mi segno nell'elenco" : "non partecipo alla serata"}`);
-  L.push(`*Tipo:* ${asporto ? "Porto via" : "Al locale"}`, `*Nome:* ${$("#nome").value.trim()}`,
-    `*Giorno:* ${longDate($("#data").value)}`, `*${asporto?"Ora di ritiro":"Ora"}:* ${$("#ora").value}`);
+  if (evento) L.push(`*Serata gastronomica ${serataScelta}${CONFIG.evento.quando ? " (" + CONFIG.evento.quando + ")" : ""}:* ${$("#quar").checked ? "mi segno nell'elenco" : "non partecipo alla serata"}`);
+  L.push(`*Tipo:* ${consegna ? "Consegna a casa" : asporto ? "Porto via" : "Al locale"}`, `*Nome:* ${$("#nome").value.trim()}`,
+    `*Giorno:* ${longDate($("#data").value)}`, `*${consegna?"Ora di consegna":asporto?"Ora di ritiro":"Ora"}:* ${$("#ora").value}`);
+  if (consegna) L.push(`*Indirizzo:* ${$("#indirizzo").value.trim()}`);
   if (!asporto) L.push(`*Persone:* ${persone}`);
   const righe = allDishes().filter(p=>qty[p.id]);
-  if (righe.length){ L.push("", "*Ordine:*"); righe.forEach(p=>L.push(`${qty[p.id]} × ${p.nome} — ${eur(qty[p.id]*p.prezzo)}`)); if (copertoTot()) L.push(`Coperto: ${persone} × ${eur(CONFIG.coperto)}`); L.push(`*Totale:* ${eur(total())}`); }
+  if (righe.length){ L.push("", "*Ordine:*"); righe.forEach(p=>L.push(`${qty[p.id]} × ${p.nome} — ${eur(qty[p.id]*p.prezzo)}`)); if (copertoTot()) L.push(`Coperto: ${persone} × ${eur(CONFIG.coperto)}`); if (consegnaTot()) L.push(`Consegna: ${nPizze()} × ${eur(CONFIG.consegna)}`); L.push(`*Totale:* ${eur(total())}`); }
   else if (!evento) L.push("", "Ordine: lo scelgo al locale.");
   const n = $("#note").value.trim(); if (n) L.push("", `*Note:* ${n}`);
   return L.join("\n");
@@ -316,12 +329,12 @@ $("#go").onclick = () => {
   if (!d) return fail("Scegli il giorno.", "#data");
   if (d < isoToday()) return fail("Il giorno scelto è già passato.", "#data");
   if (CONFIG.giorniChiusi.includes(new Date(y,m-1,dd).getDay())) return fail("Quel giorno il locale è chiuso. Scegline un altro.", "#data");
-  if (!$("#ora").value) return fail(asporto ? "Scegli l'ora di ritiro." : "Scegli l'ora.", "#ora");
+  if (!$("#ora").value) return fail(consegna ? "Scegli l'ora di consegna." : asporto ? "Scegli l'ora di ritiro." : "Scegli l'ora.", "#ora");
+  if (consegna && !$("#indirizzo").value.trim()) return fail("Scrivi l'indirizzo di consegna.", "#indirizzo");
   const msg = message();
   $("#preview").textContent = msg;
   const demo = false;
   $("#wa").href = "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(msg);
-  $("#wa2").hidden = !CONFIG.whatsapp2; if (CONFIG.whatsapp2) $("#wa2").href = "https://wa.me/" + CONFIG.whatsapp2 + "?text=" + encodeURIComponent(msg);
   $("#resNote").textContent = demo
     ? "Questa è una prova: il messaggio arriva al numero di prova. Nella versione vera arriva al locale. Premi Apri WhatsApp, poi Invia."
     : "Premi Apri WhatsApp, controlla il messaggio e premi Invia. La prenotazione vale quando il locale ti risponde.";
@@ -348,10 +361,20 @@ $("#bData").min = isoToday();
 
 $("#pMeno").disabled = false;
 renderMode(); renderSlots(); renderMenu();
-/* La serata gastronomica si cambia nel file serata.txt (una sola riga). Riga vuota = nessuna serata. Se il file non c'è, vale CONFIG. */
+/* La serata gastronomica si cambia nel file serata.txt (riga 1 = nome, riga 2 = quando, facoltativa). Riga vuota = nessuna serata. Se il file non c'è, vale CONFIG. */
+/* Il menu si cambia nel file menu.json (dalla pagina di gestione). Se il file non c'è o non è valido, vale il menu qui sopra. */
+fetch("menu.json?" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.json() : null).then(m => {
+  const ok = Array.isArray(m) && m.length && m.every(x => x && typeof x.sezione === "string" && Array.isArray(x.piatti) && x.piatti.every(p => p && p.id && typeof p.nome === "string" && typeof p.prezzo === "number" && p.prezzo >= 0));
+  if (!ok) return;
+  CONFIG.menu = m;
+  const ids = new Set(allDishes().map(p => p.id)); Object.keys(qty).forEach(k => { if (!ids.has(k) || allDishes().find(p => p.id === k).esaurito) delete qty[k]; });
+  renderMenu();
+}).catch(() => {});
 fetch("serata.txt?" + Date.now(), {cache:"no-store"}).then(r => r.ok ? r.text() : null).then(t => {
   if (t === null || /<\s*html/i.test(t)) return;
-  CONFIG.evento.serate = t.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,1);
+  const righe = t.split("\n").map(x=>x.trim());
+  CONFIG.evento.serate = righe[0] ? [righe[0]] : [];
+  CONFIG.evento.quando = righe[0] ? (righe[1] || "") : "";
   renderMode(); renderMenu();
 }).catch(() => {});
 </script>

@@ -24,6 +24,12 @@ button:disabled{opacity:.5}
 .msg{min-height:22px;font-weight:700}
 .msg.ok{color:var(--green)}.msg.err{color:var(--red)}
 .note{font-size:13.5px;color:var(--muted);margin:0}
+.dr{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.dr .row{display:flex;gap:10px;align-items:center}
+.dr .row label{display:flex;align-items:center;gap:8px;font-size:15px;color:var(--ink);white-space:nowrap}
+.dr input[type=checkbox]{width:24px;height:24px;min-height:0}
+.dr.del input[type=text]{text-decoration:line-through;opacity:.5}
+h3{font-size:16px;margin:8px 0 0}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -48,12 +54,24 @@ button:disabled{opacity:.5}
         <option>A Quarara</option><option>Spezzatino</option><option>Panzerotti</option><option>Agnello</option>
         <option>Porchetta</option><option>Coccia</option><option>Baccalà</option><option value="__altra">Un'altra serata…</option>
       </select></div>
+    <div><label for="quando">Quando</label>
+      <select id="quando"><option value="stasera">Stasera</option><option value="domani sera">Domani sera</option><option value="__data">Un altro giorno…</option><option value="">Non scrivere quando</option></select></div>
+    <div id="dataBox" hidden><label for="data">Giorno</label><input id="data" type="date"></div>
     <div id="altraBox" hidden><label for="altra">Nome della nuova serata</label><input id="altra" placeholder="Es. Free ATL"></div>
     <button id="pub" type="button">Pubblica la serata</button>
     <button id="none" type="button" class="sec">Stasera nessuna serata</button>
     <div class="msg" id="m2" role="alert"></div>
     <p class="note">Dopo aver premuto, la pagina dei soci si aggiorna in uno o due minuti.</p>
     <button id="out" type="button" class="sec">Dimentica il codice su questo telefono</button>
+  </section>
+
+  <section class="card" id="menuCard" hidden>
+    <h2>Menu</h2>
+    <p class="note">Cambia prezzi, segna i piatti finiti come "esaurito", togli o aggiungi piatti. Poi premi Salva il menu.</p>
+    <button id="menuOpen" type="button" class="sec">Modifica il menu</button>
+    <div id="menuEd" hidden></div>
+    <button id="menuSave" type="button" hidden>Salva il menu</button>
+    <div class="msg" id="m3" role="alert"></div>
   </section>
 </div>
 
@@ -63,25 +81,26 @@ const FILE = "serata.txt";
 const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} }, del:k=>{ try{ localStorage.removeItem(k); }catch(e){} } };
 let repo = store.get("tu_repo") || "", tok = store.get("tu_tok") || "", sha = null;
 
-const api = (method, body) => fetch(`https://api.github.com/repos/${repo}/contents/${FILE}`, {
+const apiF = (file, method, body) => fetch(`https://api.github.com/repos/${repo}/contents/${file}`, {
   method, cache:"no-store",
   headers:{ "Authorization":"Bearer "+tok, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...(body?{"Content-Type":"application/json"}:{}) },
   body: body ? JSON.stringify(body) : undefined });
+const api = (method, body) => apiF(FILE, method, body);
 const b64 = s => btoa(unescape(encodeURIComponent(s)));
 const unb64 = s => decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
 const errText = r => r.status===401 ? "Il codice non è valido o è scaduto." : r.status===403 ? "Il codice non ha il permesso di modificare. Rifallo con 'Contents: Read and write'." : r.status===404 ? "Non trovo il repository o il file serata.txt." : r.status===409||r.status===422 ? "Qualcuno ha cambiato il file. Ricarica la pagina e riprova." : "Errore "+r.status+".";
 
 async function load(){
-  $("#setup").hidden = true; $("#main").hidden = false; $("#now").textContent = "Controllo la serata attuale…";
+  $("#setup").hidden = true; $("#main").hidden = false; $("#menuCard").hidden = false; $("#now").textContent = "Controllo la serata attuale…"; $("#m2").className="msg"; $("#m2").textContent="";
   try {
     const r = await api("GET");
     if (!r.ok) { $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = errText(r); if (r.status===401){ showSetup("Il codice non è valido. Inseriscilo di nuovo."); } return; }
     const j = await r.json(); sha = j.sha;
-    const t = unb64(j.content).split("\n")[0].trim();
-    $("#now").textContent = t ? "Serata attuale: " + t : "Adesso non c'è nessuna serata.";
+    const righe = unb64(j.content).split("\n").map(x=>x.trim()), t = righe[0], q = righe[1] || "";
+    $("#now").textContent = t ? "Serata attuale: " + t + (q ? " (" + q + ")" : "") : "Adesso non c'è nessuna serata.";
   } catch(e){ $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = "Non riesco a collegarmi. Controlla la connessione."; }
 }
-function showSetup(msg){ $("#main").hidden = true; $("#setup").hidden = false; $("#m1").className="msg err"; $("#m1").textContent = msg||""; }
+function showSetup(msg){ $("#main").hidden = true; $("#menuCard").hidden = true; $("#setup").hidden = false; $("#m1").className="msg err"; $("#m1").textContent = msg||""; }
 
 $("#save").onclick = () => {
   const r = $("#repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,""), t = $("#tok").value.trim();
@@ -89,21 +108,73 @@ $("#save").onclick = () => {
   if (!t) { $("#m1").className="msg err"; $("#m1").textContent = "Incolla il codice di accesso."; return; }
   repo = r; tok = t; store.set("tu_repo", repo); store.set("tu_tok", tok); load();
 };
+$("#quando").onchange = () => { $("#dataBox").hidden = $("#quando").value !== "__data"; };
 $("#pick").onchange = () => { $("#altraBox").hidden = $("#pick").value !== "__altra"; };
-async function publish(text){
+async function publish(text, quando){
+  quando = quando || "";
   const m = $("#m2"); m.className = "msg"; m.textContent = "Salvo…"; $("#pub").disabled = $("#none").disabled = true;
   try {
     if (!sha) { const g = await api("GET"); if (g.ok) sha = (await g.json()).sha; }
-    const r = await api("PUT", { message: text ? "Serata: "+text : "Nessuna serata", content: b64(text ? text+"\n" : "\n"), ...(sha?{sha}:{}) });
+    const r = await api("PUT", { message: text ? "Serata: "+text : "Nessuna serata", content: b64(text ? text + "\n" + quando + "\n" : "\n"), ...(sha?{sha}:{}) });
     if (!r.ok) { m.className="msg err"; m.textContent = errText(r); }
-    else { sha = (await r.json()).content.sha; m.className="msg ok"; m.textContent = text ? "Fatto: stasera c'è "+text+"." : "Fatto: stasera nessuna serata."; $("#now").textContent = text ? "Serata attuale: "+text : "Adesso non c'è nessuna serata."; }
+    else { sha = (await r.json()).content.sha; m.className="msg ok"; m.textContent = text ? "Fatto: "+(quando||"in programma")+" c'è "+text+"." : "Fatto: stasera nessuna serata."; $("#now").textContent = text ? "Serata attuale: "+text+(quando?" ("+quando+")":"") : "Adesso non c'è nessuna serata."; }
   } catch(e){ m.className="msg err"; m.textContent = "Non riesco a collegarmi. Controlla la connessione."; }
   $("#pub").disabled = $("#none").disabled = false;
 }
-$("#pub").onclick = () => { const v = $("#pick").value === "__altra" ? $("#altra").value.trim() : $("#pick").value; if (!v) { $("#m2").className="msg err"; $("#m2").textContent = "Scrivi il nome della serata."; return; } publish(v.replace(/\s+/g," ")); };
+$("#pub").onclick = () => { const v = $("#pick").value === "__altra" ? $("#altra").value.trim() : $("#pick").value; if (!v) { $("#m2").className="msg err"; $("#m2").textContent = "Scrivi il nome della serata."; return; } let q = $("#quando").value;
+  if (q === "__data") { const d = $("#data").value; if (!d) { $("#m2").className="msg err"; $("#m2").textContent = "Scegli il giorno."; return; } q = new Date(d + "T12:00:00").toLocaleDateString("it-IT", {weekday:"long", day:"numeric", month:"long"}); }
+  publish(v.replace(/\s+/g," "), q); };
 $("#none").onclick = () => publish("");
 $("#out").onclick = () => { store.del("tu_tok"); tok = ""; $("#tok").value = ""; showSetup("Codice dimenticato."); };
 
+let menu = null, menuSha = null;
+const esc = t => String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+function drawMenu(){
+  $("#menuEd").innerHTML = menu.map((s,i) => `<h3>${esc(s.sezione)}</h3>` + s.piatti.map((p,j) => `
+    <div class="dr${p._del?" del":""}" data-i="${i}" data-j="${j}">
+      <input type="text" data-f="nome" value="${esc(p.nome)}" placeholder="Nome del piatto" aria-label="Nome">
+      <input type="text" data-f="desc" value="${esc(p.desc||"")}" placeholder="Descrizione (facoltativa)" aria-label="Descrizione">
+      <div class="row"><input type="text" inputmode="decimal" data-f="prezzo" value="${String(p.prezzo).replace(".",",")}" style="width:90px" aria-label="Prezzo"><span>€</span>
+        <label><input type="checkbox" data-f="esaurito"${p.esaurito?" checked":""}> Esaurito</label>
+        <button type="button" class="sec" data-act="del" style="min-height:40px;padding:6px 14px;margin-left:auto">${p._del?"Annulla":"Togli"}</button></div>
+    </div>`).join("") + `<button type="button" class="sec" data-act="add" data-i="${i}">+ Aggiungi in ${esc(s.sezione)}</button>`).join("");
+}
+$("#menuEd").addEventListener("input", e => { const r = e.target.closest(".dr"); if (!r) return; const p = menu[r.dataset.i].piatti[r.dataset.j], f = e.target.dataset.f; p[f] = f === "esaurito" ? e.target.checked : e.target.value; });
+$("#menuEd").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  if (b.dataset.act === "add") { menu[b.dataset.i].piatti.push({id:"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), nome:"", desc:"", prezzo:"", _new:true}); drawMenu(); const t = $("#menuEd").querySelectorAll(".dr"); const last = [...t].filter(x=>x.dataset.i===b.dataset.i).pop(); last.querySelector("input").focus(); }
+  else { const r = b.closest(".dr"), p = menu[r.dataset.i].piatti[r.dataset.j]; if (p._new) menu[r.dataset.i].piatti.splice(r.dataset.j,1); else p._del = !p._del; drawMenu(); }
+});
+$("#menuOpen").onclick = async () => {
+  const m = $("#m3"); m.className = "msg"; m.textContent = "Carico il menu…";
+  try {
+    const r = await apiF("menu.json", "GET");
+    if (!r.ok) { m.className = "msg err"; m.textContent = r.status === 404 ? "Non trovo menu.json nel repository. Caricalo prima." : errText(r); return; }
+    const j = await r.json(); menuSha = j.sha; menu = JSON.parse(unb64(j.content));
+    m.textContent = ""; $("#menuOpen").hidden = true; $("#menuEd").hidden = false; $("#menuSave").hidden = false; drawMenu();
+  } catch(e) { m.className = "msg err"; m.textContent = "Non riesco a caricare il menu."; }
+};
+$("#menuSave").onclick = async () => {
+  const m = $("#m3"), out = [];
+  for (const s of menu) {
+    const piatti = [];
+    for (const p of s.piatti) {
+      if (p._del) continue;
+      const nome = String(p.nome).trim(), prezzo = parseFloat(String(p.prezzo).replace(",", "."));
+      if (!nome) { m.className = "msg err"; m.textContent = "C'è un piatto senza nome. Scrivi il nome o toglilo."; return; }
+      if (!isFinite(prezzo) || prezzo < 0) { m.className = "msg err"; m.textContent = "Controlla il prezzo di: " + nome; return; }
+      const o = { id: p.id, nome, desc: String(p.desc || "").trim(), prezzo: Math.round(prezzo*100)/100 }; if (p.esaurito) o.esaurito = true; piatti.push(o);
+    }
+    out.push({ sezione: s.sezione, piatti });
+  }
+  m.className = "msg"; m.textContent = "Salvo…"; $("#menuSave").disabled = true;
+  try {
+    const r = await apiF("menu.json", "PUT", { message: "Menu aggiornato", content: b64(JSON.stringify(out, null, 1) + "\n"), sha: menuSha });
+    if (!r.ok) { m.className = "msg err"; m.textContent = errText(r); }
+    else { menuSha = (await r.json()).content.sha; menu = out; drawMenu(); m.className = "msg ok"; m.textContent = "Fatto: il menu si aggiorna in uno o due minuti."; }
+  } catch(e) { m.className = "msg err"; m.textContent = "Non riesco a collegarmi. Controlla la connessione."; }
+  $("#menuSave").disabled = false;
+};
 if (repo && tok) load(); else showSetup("");
 </script>
 </body>

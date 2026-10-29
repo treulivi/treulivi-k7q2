@@ -1,0 +1,243 @@
+[
+ {
+  "sezione": "Pizze",
+  "piatti": [
+   {
+    "id": "p1",
+    "nome": "Margherita",
+    "desc": "Pomodoro, mozzarella, olio evo",
+    "prezzo": 5.5
+   },
+   {
+    "id": "p2",
+    "nome": "Calabrese",
+    "desc": "Pomodoro, mozzarella, salame, olio evo",
+    "prezzo": 6.5
+   },
+   {
+    "id": "p3",
+    "nome": "Cardinale",
+    "desc": "Pomodoro, mozzarella, prosciutto cotto, olio evo",
+    "prezzo": 6.5
+   },
+   {
+    "id": "p4",
+    "nome": "Napoletana",
+    "desc": "Pomodoro, mozzarella, acciughe, olive, olio evo",
+    "prezzo": 7
+   },
+   {
+    "id": "p5",
+    "nome": "Americana",
+    "desc": "Pomodoro, mozzarella, wurstel, patatine, olio evo",
+    "prezzo": 7.5
+   },
+   {
+    "id": "p6",
+    "nome": "Tonno e cipolla",
+    "desc": "Pomodoro, mozzarella, tonno, cipolla, olio evo",
+    "prezzo": 8
+   },
+   {
+    "id": "p7",
+    "nome": "Capricciosa",
+    "desc": "Pomodoro, mozzarella, prosciutto cotto, carciofi, funghi, olive, olio evo",
+    "prezzo": 8
+   },
+   {
+    "id": "p8",
+    "nome": "4 formaggi",
+    "desc": "Mozzarella, gorgonzola, scamorza affumicata, emmenthal, olio evo",
+    "prezzo": 8.5
+   },
+   {
+    "id": "p9",
+    "nome": "Santa Lucia",
+    "desc": "Mozzarella, zucchine, peperoni, melanzane, olio evo",
+    "prezzo": 8.5
+   },
+   {
+    "id": "p10",
+    "nome": "Primavera",
+    "desc": "Mozzarella, pachino, rucola, prosciutto crudo, scaglie, olio evo",
+    "prezzo": 8.5
+   },
+   {
+    "id": "p11",
+    "nome": "Silana",
+    "desc": "Mozzarella, salsiccia fresca, porcini, olio evo",
+    "prezzo": 9
+   },
+   {
+    "id": "p12",
+    "nome": "Pistacchiosa",
+    "desc": "",
+    "prezzo": 9.5
+   },
+   {
+    "id": "p13",
+    "nome": "Zuccotta",
+    "desc": "Mozzarella, crema di zucca, pancetta, scamorza affumicata, olio evo",
+    "prezzo": 9
+   },
+   {
+    "id": "p14",
+    "nome": "Golosa",
+    "desc": "Mozzarella, speck, philadelphia, granelle di noci, olio evo",
+    "prezzo": 9
+   },
+   {
+    "id": "p15",
+    "nome": "I Tre Ulivi",
+    "desc": "Mozzarella, pesto, straccetti di vitello, scamorza affumicata, olio evo",
+    "prezzo": 9
+   }
+  ]
+ },
+ {
+  "sezione": "Antipasto e stuzzicheria",
+  "piatti": [
+   {
+    "id": "a1",
+    "nome": "Antipasto I Tre Ulivi",
+    "desc": "",
+    "prezzo": 12
+   },
+   {
+    "id": "a2",
+    "nome": "Patatine stick",
+    "desc": "",
+    "prezzo": 3.5
+   },
+   {
+    "id": "a3",
+    "nome": "Dippers",
+    "desc": "",
+    "prezzo": 4
+   },
+   {
+    "id": "a4",
+    "nome": "Polpette miste",
+    "desc": "",
+    "prezzo": 4
+   },
+   {
+    "id": "a5",
+    "nome": "Pepite di pollo",
+    "desc": "",
+    "prezzo": 4
+   },
+   {
+    "id": "a6",
+    "nome": "Pizza fritta \"conzata\"",
+    "desc": "",
+    "prezzo": 4
+   }
+  ]
+ },
+ {
+  "sezione": "Bibite",
+  "piatti": [
+   {
+    "id": "b1",
+    "nome": "Acqua liscia 1,5 l",
+    "desc": "",
+    "prezzo": 1.5
+   },
+   {
+    "id": "b2",
+    "nome": "Acqua gassata 1,5 l",
+    "desc": "",
+    "prezzo": 1.5
+   },
+   {
+    "id": "b3",
+    "nome": "Acqua liscia 0,5 l",
+    "desc": "",
+    "prezzo": 1
+   },
+   {
+    "id": "b4",
+    "nome": "Coca Cola 1,5 l",
+    "desc": "",
+    "prezzo": 2.5
+   },
+   {
+    "id": "b5",
+    "nome": "Fanta 1,5 l",
+    "desc": "",
+    "prezzo": 2.5
+   },
+   {
+    "id": "b6",
+    "nome": "Coca Cola 0,33 l",
+    "desc": "",
+    "prezzo": 1.5
+   },
+   {
+    "id": "b7",
+    "nome": "Fanta 0,33 l",
+    "desc": "",
+    "prezzo": 1.5
+   }
+  ]
+ },
+ {
+  "sezione": "Birre",
+  "piatti": [
+   {
+    "id": "r1",
+    "nome": "Peroni 0,33",
+    "desc": "",
+    "prezzo": 1.5
+   },
+   {
+    "id": "r2",
+    "nome": "Heineken 0,33",
+    "desc": "",
+    "prezzo": 2.5
+   },
+   {
+    "id": "r3",
+    "nome": "Bjorn 0,33",
+    "desc": "",
+    "prezzo": 3.5
+   },
+   {
+    "id": "r4",
+    "nome": "Tennent's 0,33",
+    "desc": "",
+    "prezzo": 3.5
+   },
+   {
+    "id": "r5",
+    "nome": "Birra da 0,66",
+    "desc": "",
+    "prezzo": 3
+   }
+  ]
+ },
+ {
+  "sezione": "Vino locale e amari",
+  "piatti": [
+   {
+    "id": "v1",
+    "nome": "Vino locale da 1 litro",
+    "desc": "",
+    "prezzo": 4
+   },
+   {
+    "id": "v2",
+    "nome": "Vino locale da mezzo litro",
+    "desc": "",
+    "prezzo": 2
+   },
+   {
+    "id": "v3",
+    "nome": "Amari",
+    "desc": "",
+    "prezzo": 2
+   }
+  ]
+ }
+]
