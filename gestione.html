@@ -67,9 +67,10 @@ h3{font-size:16px;margin:8px 0 0}
 
   <section class="card" id="menuCard" hidden>
     <h2>Menu</h2>
-    <p class="note">Cambia prezzi, segna i piatti finiti come "esaurito", togli o aggiungi piatti. Poi premi Salva il menu.</p>
+    <p class="note">Cambia prezzi, segna i piatti finiti come "esaurito", togli o aggiungi piatti e sezioni. Una sezione senza piatti sparisce. Poi premi Salva il menu.</p>
     <button id="menuOpen" type="button" class="sec">Modifica il menu</button>
     <div id="menuEd" hidden></div>
+    <div id="secBox" class="dr" hidden><label for="secNome">Nuova sezione (es. Primi piatti, Secondi, Dolci)</label><input id="secNome" type="text" placeholder="Nome della sezione"><button id="secAdd" type="button" class="sec">+ Aggiungi sezione</button></div>
     <button id="menuSave" type="button" hidden>Salva il menu</button>
     <div class="msg" id="m3" role="alert"></div>
   </section>
@@ -145,13 +146,19 @@ $("#menuEd").addEventListener("click", e => {
   if (b.dataset.act === "add") { menu[b.dataset.i].piatti.push({id:"n"+Date.now().toString(36)+Math.random().toString(36).slice(2,5), nome:"", desc:"", prezzo:"", _new:true}); drawMenu(); const t = $("#menuEd").querySelectorAll(".dr"); const last = [...t].filter(x=>x.dataset.i===b.dataset.i).pop(); last.querySelector("input").focus(); }
   else { const r = b.closest(".dr"), p = menu[r.dataset.i].piatti[r.dataset.j]; if (p._new) menu[r.dataset.i].piatti.splice(r.dataset.j,1); else p._del = !p._del; drawMenu(); }
 });
+$("#secAdd").onclick = () => {
+  const n = $("#secNome").value.trim().replace(/\s+/g," "), m = $("#m3");
+  if (!n) { m.className = "msg err"; m.textContent = "Scrivi il nome della sezione."; return; }
+  if (menu.some(s => s.sezione.toLowerCase() === n.toLowerCase())) { m.className = "msg err"; m.textContent = "Questa sezione c'è già."; return; }
+  menu.push({ sezione: n, piatti: [] }); $("#secNome").value = ""; m.className = "msg"; m.textContent = "Sezione aggiunta: ora aggiungi i piatti e salva."; drawMenu();
+};
 $("#menuOpen").onclick = async () => {
   const m = $("#m3"); m.className = "msg"; m.textContent = "Carico il menu…";
   try {
     const r = await apiF("menu.json", "GET");
     if (!r.ok) { m.className = "msg err"; m.textContent = r.status === 404 ? "Non trovo menu.json nel repository. Caricalo prima." : errText(r); return; }
     const j = await r.json(); menuSha = j.sha; menu = JSON.parse(unb64(j.content));
-    m.textContent = ""; $("#menuOpen").hidden = true; $("#menuEd").hidden = false; $("#menuSave").hidden = false; drawMenu();
+    m.textContent = ""; $("#menuOpen").hidden = true; $("#menuEd").hidden = false; $("#secBox").hidden = false; $("#menuSave").hidden = false; drawMenu();
   } catch(e) { m.className = "msg err"; m.textContent = "Non riesco a caricare il menu."; }
 };
 $("#menuSave").onclick = async () => {
@@ -165,7 +172,7 @@ $("#menuSave").onclick = async () => {
       if (!isFinite(prezzo) || prezzo < 0) { m.className = "msg err"; m.textContent = "Controlla il prezzo di: " + nome; return; }
       const o = { id: p.id, nome, desc: String(p.desc || "").trim(), prezzo: Math.round(prezzo*100)/100 }; if (p.esaurito) o.esaurito = true; piatti.push(o);
     }
-    out.push({ sezione: s.sezione, piatti });
+    if (piatti.length) out.push({ sezione: s.sezione, piatti });
   }
   m.className = "msg"; m.textContent = "Salvo…"; $("#menuSave").disabled = true;
   try {
