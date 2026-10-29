@@ -16,7 +16,8 @@ h1{font-size:26px;margin:12px 0 0}
 h2{font-size:18px;margin:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
 label{font-size:13px;font-weight:700;color:var(--muted)}
-input,select{width:100%;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:10px 12px;font:inherit}
+input,select,textarea{width:100%;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:10px 12px;font:inherit}
+textarea{border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:10px 12px;font:inherit;resize:vertical}
 button{min-height:50px;border:0;border-radius:999px;font:inherit;font-weight:800;padding:12px 20px;cursor:pointer;background:var(--green);color:var(--on-green)}
 button.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:700}
 button:disabled{opacity:.5}
@@ -65,6 +66,47 @@ h3{font-size:16px;margin:8px 0 0}
     <button id="out" type="button" class="sec">Dimentica il codice su questo telefono</button>
   </section>
 
+  <section class="card" id="cntCard" hidden>
+    <h2>Conteggio prenotazioni</h2>
+    <p class="note">Incolla i messaggi ricevuti su WhatsApp e ti dice quante persone vengono e cosa preparare.</p>
+    <a href="conteggio.html" style="display:block;text-align:center;text-decoration:none;font-weight:800;padding:14px;border-radius:999px;background:var(--green);color:var(--on-green)">Apri il conteggio</a>
+  </section>
+
+  <section class="card" id="impCard" hidden>
+    <h2>Impostazioni</h2>
+    <p class="note">Numero degli ordini, chiusura, orari, coperto e consegna.</p>
+    <button id="impOpen" type="button" class="sec">Modifica le impostazioni</button>
+    <div id="impEd" hidden>
+      <h3>Chiusura</h3>
+      <div><label for="chFino">Siamo chiusi fino al giorno (lascia vuoto se aperti)</label><input id="chFino" type="date"></div>
+      <div><label for="chMot">Motivo (facoltativo)</label><input id="chMot" type="text" maxlength="120" placeholder="Es. Chiuso per lutto / per ferie"></div>
+      <button id="chOggi" type="button" class="sec">Chiuso solo oggi</button>
+      <button id="chApri" type="button" class="sec">Riapri: non siamo più chiusi</button>
+      <h3>Orari e giorni</h3>
+      <div><label for="impOrari">Orari di apertura (scritta sotto l'indirizzo)</label><input id="impOrari" type="text" maxlength="160" placeholder="Es. Da giovedì a domenica, dalle 19:30"></div>
+      <div id="impGiorni" class="row" style="flex-wrap:wrap;gap:6px 14px"></div>
+      <p class="note" style="margin:0">Togli la spunta ai giorni in cui il locale è chiuso: la pagina non fa prenotare quei giorni.</p>
+      <h3>Numero WhatsApp degli ordini</h3>
+      <div><label for="impWa">Numero con prefisso (es. 347 154 5079)</label><input id="impWa" type="text" inputmode="tel" placeholder="347 123 4567"></div>
+      <h3>Prezzi</h3>
+      <div><label for="impCop">Coperto a persona (€)</label><input id="impCop" type="text" inputmode="decimal"></div>
+      <div><label for="impCons">Consegna a casa: € in più per ogni pizza</label><input id="impCons" type="text" inputmode="decimal"></div>
+      <button id="impSave" type="button">Salva le impostazioni</button>
+    </div>
+    <div class="msg" id="m5" role="alert"></div>
+  </section>
+
+  <section class="card" id="avvCard" hidden>
+    <h2>Avviso per i soci</h2>
+    <p class="note">Compare in evidenza in cima alla pagina dei soci. Per esempio: "10 dicembre: serata pizza a pala per tutti".</p>
+    <div class="now" id="avvNow">Controllo l'avviso attuale…</div>
+    <div><label for="avvTesto">Testo dell'avviso</label><textarea id="avvTesto" rows="3" maxlength="300" placeholder="Scrivi qui l'avviso"></textarea></div>
+    <div><label for="avvFino">Mostra fino al giorno (facoltativo)</label><input id="avvFino" type="date"></div>
+    <button id="avvPub" type="button">Pubblica l'avviso</button>
+    <button id="avvDel" type="button" class="sec">Togli l'avviso</button>
+    <div class="msg" id="m4" role="alert"></div>
+  </section>
+
   <section class="card" id="menuCard" hidden>
     <h2>Menu</h2>
     <p class="note">Cambia prezzi, segna i piatti finiti come "esaurito", togli o aggiungi piatti e sezioni. Una sezione senza piatti sparisce. Poi premi Salva il menu.</p>
@@ -92,7 +134,7 @@ const unb64 = s => decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
 const errText = r => r.status===401 ? "Il codice non è valido o è scaduto." : r.status===403 ? "Il codice non ha il permesso di modificare. Rifallo con 'Contents: Read and write'." : r.status===404 ? "Non trovo il repository o il file serata.txt." : r.status===409||r.status===422 ? "Qualcuno ha cambiato il file. Ricarica la pagina e riprova." : "Errore "+r.status+".";
 
 async function load(){
-  $("#setup").hidden = true; $("#main").hidden = false; $("#menuCard").hidden = false; $("#now").textContent = "Controllo la serata attuale…"; $("#m2").className="msg"; $("#m2").textContent="";
+  $("#setup").hidden = true; $("#main").hidden = false; $("#menuCard").hidden = false; $("#avvCard").hidden = false; $("#impCard").hidden = false; $("#cntCard").hidden = false; loadAvv(); $("#now").textContent = "Controllo la serata attuale…"; $("#m2").className="msg"; $("#m2").textContent="";
   try {
     const r = await api("GET");
     if (!r.ok) { $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = errText(r); if (r.status===401){ showSetup("Il codice non è valido. Inseriscilo di nuovo."); } return; }
@@ -101,7 +143,7 @@ async function load(){
     $("#now").textContent = t ? "Serata attuale: " + t + (q ? " (" + q + ")" : "") : "Adesso non c'è nessuna serata.";
   } catch(e){ $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = "Non riesco a collegarmi. Controlla la connessione."; }
 }
-function showSetup(msg){ $("#main").hidden = true; $("#menuCard").hidden = true; $("#setup").hidden = false; $("#m1").className="msg err"; $("#m1").textContent = msg||""; }
+function showSetup(msg){ $("#main").hidden = true; $("#menuCard").hidden = true; $("#avvCard").hidden = true; $("#impCard").hidden = true; $("#cntCard").hidden = true; $("#setup").hidden = false; $("#m1").className="msg err"; $("#m1").textContent = msg||""; }
 
 $("#save").onclick = () => {
   const r = $("#repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,""), t = $("#tok").value.trim();
@@ -128,6 +170,76 @@ $("#pub").onclick = () => { const v = $("#pick").value === "__altra" ? $("#altra
 $("#none").onclick = () => publish("");
 $("#out").onclick = () => { store.del("tu_tok"); tok = ""; $("#tok").value = ""; showSetup("Codice dimenticato."); };
 
+const GIORNI = [["1","Lun"],["2","Mar"],["3","Mer"],["4","Gio"],["5","Ven"],["6","Sab"],["0","Dom"]];
+let impSha = null;
+const impDef = { whatsapp: "393471545079", coperto: 1, consegna: 1, giorniChiusi: [], orari: "" };
+const isoOggi = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*6e4).toISOString().slice(0,10); };
+const numIt = v => parseFloat(String(v).replace(",", "."));
+function fmtWa(n){ return String(n).replace(/^39(\d{3})(\d{3})(\d{3,4})$/, "$1 $2 $3"); }
+function normWa(v){ let d = String(v).replace(/[^\d+]/g, ""); if (d.startsWith("+")) d = d.slice(1); else if (d.startsWith("00")) d = d.slice(2); else if (/^3\d{8,9}$/.test(d)) d = "39" + d; return /^\d{8,15}$/.test(d) ? d : ""; }
+function drawImp(c){
+  $("#chFino").value = c.chiusoFino && c.chiusoFino >= isoOggi() ? c.chiusoFino : ""; $("#chMot").value = c.chiusoMotivo || "";
+  $("#impOrari").value = c.orari || ""; $("#impWa").value = fmtWa(c.whatsapp); $("#impCop").value = String(c.coperto).replace(".", ","); $("#impCons").value = String(c.consegna).replace(".", ",");
+  $("#impGiorni").innerHTML = GIORNI.map(([k, n]) => `<label style="display:flex;align-items:center;gap:6px;color:var(--ink);font-size:15px"><input type="checkbox" data-g="${k}" style="width:22px;height:22px;min-height:0"${(c.giorniChiusi || []).includes(Number(k)) ? "" : " checked"}> ${n}</label>`).join("");
+}
+$("#impOpen").onclick = async () => {
+  const m = $("#m5"); m.className = "msg"; m.textContent = "Carico…";
+  try {
+    const r = await apiF("impostazioni.json", "GET"); let c = { ...impDef };
+    if (r.status === 404) impSha = null;
+    else if (!r.ok) { m.className = "msg err"; m.textContent = errText(r); return; }
+    else { const j = await r.json(); impSha = j.sha; c = { ...impDef, ...JSON.parse(unb64(j.content)) }; }
+    m.textContent = ""; drawImp(c); $("#impOpen").hidden = true; $("#impEd").hidden = false;
+  } catch(e) { m.className = "msg err"; m.textContent = "Non riesco a caricare le impostazioni."; }
+};
+$("#chOggi").onclick = () => { $("#chFino").value = isoOggi(); };
+$("#chApri").onclick = () => { $("#chFino").value = ""; $("#chMot").value = ""; };
+$("#impSave").onclick = async () => {
+  const m = $("#m5"), wa = normWa($("#impWa").value), cop = numIt($("#impCop").value), cons = numIt($("#impCons").value);
+  const err = t => { m.className = "msg err"; m.textContent = t; };
+  if (!wa) return err("Numero WhatsApp non valido. Scrivilo con il prefisso, per esempio 347 154 5079.");
+  if (!isFinite(cop) || cop < 0 || cop > 20) return err("Controlla il coperto.");
+  if (!isFinite(cons) || cons < 0 || cons > 20) return err("Controlla il prezzo della consegna.");
+  const fino = $("#chFino").value;
+  if (fino && fino < isoOggi()) return err("La data di chiusura è già passata.");
+  const chiusi = [...$("#impGiorni").querySelectorAll("input")].filter(i => !i.checked).map(i => Number(i.dataset.g));
+  if (chiusi.length === 7) return err("Hai tolto tutti i giorni: lascia almeno un giorno aperto.");
+  const c = { whatsapp: wa, coperto: Math.round(cop*100)/100, consegna: Math.round(cons*100)/100, giorniChiusi: chiusi, orari: $("#impOrari").value.trim() };
+  if (fino) { c.chiusoFino = fino; const mo = $("#chMot").value.trim(); if (mo) c.chiusoMotivo = mo; }
+  m.className = "msg"; m.textContent = "Salvo…"; $("#impSave").disabled = true;
+  try {
+    const body = { message: "Impostazioni aggiornate", content: b64(JSON.stringify(c, null, 1) + "\n") }; if (impSha) body.sha = impSha;
+    const r = await apiF("impostazioni.json", "PUT", body);
+    if (!r.ok) err(errText(r)); else { impSha = (await r.json()).content.sha; m.className = "msg ok"; m.textContent = "Fatto: le impostazioni si aggiornano in uno o due minuti."; $("#impWa").value = fmtWa(wa); }
+  } catch(e) { err("Non riesco a collegarmi. Controlla la connessione."); }
+  $("#impSave").disabled = false;
+};
+let avvSha = null;
+function longIt(iso){ const [y,m,d] = iso.split("-").map(Number); return new Date(y,m-1,d).toLocaleDateString("it-IT",{day:"numeric",month:"long"}); }
+async function loadAvv(){
+  const n = $("#avvNow");
+  try {
+    const r = await apiF("avviso.json", "GET");
+    if (r.status === 404) { avvSha = null; n.textContent = "Adesso non c'è nessun avviso."; return; }
+    if (!r.ok) { n.textContent = ""; $("#m4").className = "msg err"; $("#m4").textContent = errText(r); return; }
+    const j = await r.json(); avvSha = j.sha; const a = JSON.parse(unb64(j.content));
+    n.textContent = a.testo ? "Avviso attuale: " + a.testo + (a.fino ? " (fino al " + longIt(a.fino) + ")" : "") : "Adesso non c'è nessun avviso.";
+  } catch(e) { n.textContent = ""; }
+}
+async function saveAvv(testo, fino){
+  const m = $("#m4"); m.className = "msg"; m.textContent = "Salvo…"; $("#avvPub").disabled = $("#avvDel").disabled = true;
+  try {
+    if (avvSha === null) { const g0 = await apiF("avviso.json", "GET"); if (g0.ok) avvSha = (await g0.json()).sha; }
+    const body = { message: testo ? "Avviso aggiornato" : "Avviso tolto", content: b64(JSON.stringify(testo ? {testo, ...(fino ? {fino} : {})} : {testo:""}) + "\n") };
+    if (avvSha) body.sha = avvSha;
+    const r = await apiF("avviso.json", "PUT", body);
+    if (!r.ok) { m.className = "msg err"; m.textContent = errText(r); }
+    else { avvSha = (await r.json()).content.sha; m.className = "msg ok"; m.textContent = testo ? "Fatto: l'avviso compare in uno o due minuti." : "Fatto: avviso tolto."; $("#avvNow").textContent = testo ? "Avviso attuale: " + testo + (fino ? " (fino al " + longIt(fino) + ")" : "") : "Adesso non c'è nessun avviso."; if (!testo) { $("#avvTesto").value = ""; $("#avvFino").value = ""; } }
+  } catch(e) { m.className = "msg err"; m.textContent = "Non riesco a collegarmi. Controlla la connessione."; }
+  $("#avvPub").disabled = $("#avvDel").disabled = false;
+}
+$("#avvPub").onclick = () => { const t = $("#avvTesto").value.trim(); if (!t) { $("#m4").className = "msg err"; $("#m4").textContent = "Scrivi il testo dell'avviso."; return; } saveAvv(t, $("#avvFino").value); };
+$("#avvDel").onclick = () => saveAvv("", "");
 let menu = null, menuSha = null;
 const esc = t => String(t).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
 function drawMenu(){

@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f6f0dc">
+<title>Conteggio prenotazioni</title>
+<style>
+:root{--bg:#f6f0dc;--surface:#fffdf5;--ink:#2b2a22;--muted:#6a6550;--line:#ddd3b4;--green:#3b6e2c;--on-green:#fff;--red:#b83a2e;--soft:#e6efd6}
+@media (prefers-color-scheme: dark){:root{--bg:#101a14;--surface:#17241c;--ink:#e9eee3;--muted:#9db0a2;--line:#2a3d31;--green:#8cc98f;--on-green:#0e1a12;--red:#f08a72;--soft:#1f3626;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:26px;margin:12px 0 0}
+h2{font-size:18px;margin:0}
+h3{font-size:15px;margin:0;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}
+textarea{width:100%;min-height:160px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:10px 12px;font:inherit;resize:vertical}
+button{min-height:50px;border:0;border-radius:999px;font:inherit;font-weight:800;padding:12px 20px;cursor:pointer;background:var(--green);color:var(--on-green)}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:700}
+.note{font-size:14px;color:var(--muted);margin:0}
+.big{font-size:34px;font-weight:800;line-height:1.1}
+.row{display:flex;justify-content:space-between;gap:12px;align-items:baseline;padding:6px 0;border-bottom:1px dashed var(--line)}
+.row:last-child{border-bottom:0}
+.row .n{font-weight:700}
+.row .d{color:var(--muted);font-size:14px}
+.pill{display:inline-block;background:var(--soft);color:var(--ink);border-radius:999px;padding:2px 10px;font-weight:800;font-size:14px}
+.warn{color:var(--red);font-weight:700}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Conteggio prenotazioni</h1>
+  <section class="card">
+    <p class="note">Su WhatsApp apri le chat con le prenotazioni, copia i messaggi e incollali qui sotto. Poi tocca Conta. Non viene salvato niente su internet: resta solo su questo telefono.</p>
+    <textarea id="txt" placeholder="Incolla qui i messaggi di prenotazione" aria-label="Messaggi di prenotazione"></textarea>
+    <button id="go" type="button">Conta</button>
+    <button id="clear" type="button" class="sec">Svuota tutto</button>
+  </section>
+  <div id="out"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} }, del:k=>{ try{ localStorage.removeItem(k); }catch(e){} } };
+const MESI = ["gennaio","febbraio","marzo","aprile","maggio","giugno","luglio","agosto","settembre","ottobre","novembre","dicembre"];
+const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const eur = n => n.toFixed(2).replace(".", ",") + " €";
+const num = s => parseFloat(String(s).replace(/\./g,"").replace(",", ".")) || 0;
+const field = (b, k) => { const m = b.match(new RegExp("\\*" + k + ":\\*\\s*([^\\n]*)", "i")); return m ? m[1].trim() : ""; };
+
+function sortKey(g){ const m = g.toLowerCase().match(/(\d{1,2})\s+([a-zì]+)/); if (!m) return 9999; const mi = MESI.indexOf(m[2]); if (mi < 0) return 9999; const now = new Date(); let y = now.getFullYear(); const d = new Date(y, mi, +m[1]); if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate() - 60)) y++; return y * 10000 + (mi+1) * 100 + (+m[1]); }
+
+function parse(text){
+  const re = /\*(Prenotazione serata|Prenotazione|Richiesta banchetto)[^*\n]*\*/g;
+  const idx = []; let m; while ((m = re.exec(text))) idx.push({ i: m.index, tipo: m[1] });
+  const seen = new Set(), out = []; let doppi = 0;
+  idx.forEach((h, k) => {
+    const blk = text.slice(h.i, k + 1 < idx.length ? idx[k+1].i : text.length).replace(/\n\[?\d{1,2}\/\d{1,2}\/\d{2,4}[,\s][^\n]*$/m, "");
+    const key = blk.replace(/\s+/g, " ").trim();
+    if (seen.has(key)) { doppi++; return; } seen.add(key);
+    const r = { tipo: h.tipo, nome: field(blk, "Nome"), persone: parseInt(field(blk, "Persone"), 10) || 0, note: field(blk, "Note"), blk };
+    if (h.tipo === "Prenotazione serata") { r.serata = field(blk, "Serata gastronomica"); r.quando = field(blk, "Quando"); }
+    else if (h.tipo === "Richiesta banchetto") { r.occ = field(blk, "Occasione"); r.giorno = field(blk, "Giorno"); }
+    else {
+      r.modo = field(blk, "Tipo") || "Al locale"; r.giorno = field(blk, "Giorno"); r.ora = field(blk, "Ora") || field(blk, "Ora di ritiro") || field(blk, "Ora di consegna");
+      r.indirizzo = field(blk, "Indirizzo"); r.totale = num(field(blk, "Totale").replace("€", ""));
+      r.piatti = []; (blk.match(/^\s*\d+\s*[×x]\s*.+?—\s*[\d.,]+\s*€/gim) || []).forEach(l => { const mm = l.match(/(\d+)\s*[×x]\s*(.+?)\s*—/i); if (mm) r.piatti.push({ q: +mm[1], n: mm[2].trim() }); });
+    }
+    out.push(r);
+  });
+  return { out, doppi };
+}
+
+function render(){
+  const text = $("#txt").value; store.set("tu_conteggio", text);
+  const o = $("#out"); if (!text.trim()) { o.innerHTML = ""; return; }
+  const { out, doppi } = parse(text);
+  if (!out.length) { o.innerHTML = '<section class="card"><p class="warn">Non trovo nessuna prenotazione. Controlla di aver copiato i messaggi che iniziano con "Prenotazione".</p></section>'; return; }
+  let h = "";
+  const tot = out.reduce((a, r) => a + (r.persone || 0), 0);
+  h += `<section class="card"><h2>In tutto</h2><div class="big">${out.length} <span style="font-size:18px;font-weight:700">prenotazioni</span></div><div class="note">${doppi ? `Ho ignorato ${doppi} messaggio/i doppio/i incollato/i due volte.` : "Nessun messaggio doppio."}</div></section>`;
+  // Serate gastronomiche
+  const ev = out.filter(r => r.tipo === "Prenotazione serata"), gr = {};
+  ev.forEach(r => { const k = r.serata + "|" + r.quando; (gr[k] = gr[k] || []).push(r); });
+  Object.keys(gr).sort((a, b) => sortKey(gr[a][0].quando) - sortKey(gr[b][0].quando)).forEach(k => {
+    const L = gr[k], p = L.reduce((a, r) => a + r.persone, 0);
+    h += `<section class="card"><h3>Serata gastronomica</h3><h2>${esc(L[0].serata)}${L[0].quando ? " · " + esc(L[0].quando) : ""}</h2><div class="big">${p} <span style="font-size:18px;font-weight:700">persone</span> <span class="pill">${L.length} prenotazioni</span></div>` +
+      L.map(r => `<div class="row"><span><span class="n">${esc(r.nome)}</span>${r.note ? `<br><span class="d">${esc(r.note)}</span>` : ""}</span><span class="n">${r.persone}</span></div>`).join("") + "</section>";
+  });
+  // Ristorante per giorno
+  const ri = out.filter(r => r.tipo === "Prenotazione"), gg = {};
+  ri.forEach(r => (gg[r.giorno] = gg[r.giorno] || []).push(r));
+  Object.keys(gg).sort((a, b) => sortKey(a) - sortKey(b)).forEach(g => {
+    const L = gg[g], loc = L.filter(r => /locale/i.test(r.modo)), asp = L.filter(r => /porto/i.test(r.modo)), con = L.filter(r => /consegna/i.test(r.modo));
+    const byOra = (a, b) => (a.ora || "").localeCompare(b.ora || "");
+    h += `<section class="card"><h3>Ristorante</h3><h2>${esc(g)}</h2>`;
+    if (loc.length) { const p = loc.reduce((a, r) => a + r.persone, 0); h += `<div class="big">${p} <span style="font-size:18px;font-weight:700">persone al locale</span> <span class="pill">${loc.length} tavoli</span></div>` + [...loc].sort(byOra).map(r => `<div class="row"><span><span class="n">${esc(r.ora)} · ${esc(r.nome)}</span>${r.piatti.length ? `<br><span class="d">${esc(r.piatti.map(x => x.q + " " + x.n).join(", "))}</span>` : ""}${r.note ? `<br><span class="d">${esc(r.note)}</span>` : ""}</span><span class="n">${r.persone}</span></div>`).join(""); }
+    if (asp.length) h += `<h3 style="margin-top:8px">Da portare via (${asp.length})</h3>` + [...asp].sort(byOra).map(r => `<div class="row"><span><span class="n">${esc(r.ora)} · ${esc(r.nome)}</span><br><span class="d">${esc(r.piatti.map(x => x.q + " " + x.n).join(", "))}${r.note ? " · " + esc(r.note) : ""}</span></span><span class="n">${eur(r.totale)}</span></div>`).join("");
+    if (con.length) h += `<h3 style="margin-top:8px">Consegne a casa (${con.length})</h3>` + [...con].sort(byOra).map(r => `<div class="row"><span><span class="n">${esc(r.ora)} · ${esc(r.nome)}</span><br><span class="d">${esc(r.indirizzo)}<br>${esc(r.piatti.map(x => x.q + " " + x.n).join(", "))}${r.note ? " · " + esc(r.note) : ""}</span></span><span class="n">${eur(r.totale)}</span></div>`).join("");
+    const cuc = {}; L.forEach(r => r.piatti.forEach(x => cuc[x.n] = (cuc[x.n] || 0) + x.q));
+    const ks = Object.keys(cuc).sort((a, b) => cuc[b] - cuc[a]);
+    if (ks.length) h += `<h3 style="margin-top:8px">Da preparare in tutto</h3>` + ks.map(n => `<div class="row"><span class="n">${esc(n)}</span><span class="n">${cuc[n]}</span></div>`).join("");
+    const inc = L.reduce((a, r) => a + (r.totale || 0), 0); if (inc) h += `<div class="note">Totale degli ordini del giorno: <b>${eur(inc)}</b></div>`;
+    h += "</section>";
+  });
+  // Banchetti
+  const ba = out.filter(r => r.tipo === "Richiesta banchetto");
+  if (ba.length) h += `<section class="card"><h3>Richieste feste e banchetti</h3>` + ba.map(r => `<div class="row"><span><span class="n">${esc(r.nome)}</span><br><span class="d">${esc(r.occ)} · ${esc(r.giorno)}</span></span><span class="n">${r.persone}</span></div>`).join("") + "</section>";
+  h += `<section class="card"><button id="cp" type="button" class="sec">Copia il riepilogo come testo</button><div class="note" id="cpm"></div></section>`;
+  o.innerHTML = h;
+  $("#cp").onclick = async () => {
+    const t = [...o.querySelectorAll(".card")].slice(0, -1).map(c => c.innerText.trim()).join("\n\n");
+    try { await navigator.clipboard.writeText(t); $("#cpm").textContent = "Riepilogo copiato."; } catch(e) { $("#cpm").textContent = "Non riesco a copiare: tieni premuto sul testo e copialo."; }
+  };
+}
+$("#go").onclick = render;
+$("#clear").onclick = () => { $("#txt").value = ""; store.del("tu_conteggio"); render(); };
+$("#txt").value = store.get("tu_conteggio") || ""; if ($("#txt").value) render();
+</script>
+</body>
+</html>
