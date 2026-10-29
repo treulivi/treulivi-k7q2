@@ -160,7 +160,7 @@ textarea{min-height:70px;resize:vertical}
     <div class="preview" id="preview"></div>
     <div style="display:flex;flex-wrap:wrap;gap:10px">
       <a class="btn2 main" id="wa" href="#" target="_blank" rel="noopener">Apri WhatsApp</a>
-      <button class="btn2" type="button" id="copy">Copia il messaggio</button>
+      <button type="button" id="copy" style="border:0;background:none;color:var(--muted);text-decoration:underline;font:inherit;font-size:14px;padding:8px 4px;cursor:pointer">WhatsApp non si apre? Copia il messaggio</button>
     </div>
     <p class="note" style="margin:0" id="copied" hidden>Messaggio copiato.</p>
   </section>
@@ -337,7 +337,7 @@ $("#go").onclick = () => {
   $("#wa").href = "https://wa.me/" + CONFIG.whatsapp + "?text=" + encodeURIComponent(msg);
   $("#resNote").textContent = demo
     ? "Questa è una prova: il messaggio arriva al numero di prova. Nella versione vera arriva al locale. Premi Apri WhatsApp, poi Invia."
-    : "Premi Apri WhatsApp, controlla il messaggio e premi Invia. La prenotazione vale quando il locale ti risponde.";
+    : "Premi il pulsante verde Apri WhatsApp, poi premi Invia. La prenotazione vale quando il locale ti risponde.";
   $("#result").hidden = false; $("#result").scrollIntoView({behavior:"smooth",block:"start"});
 };
 function fail(t, sel){ $("#err").textContent = t; const el=$(sel); el.focus({preventScroll:false}); el.scrollIntoView({block:"center"}); }
