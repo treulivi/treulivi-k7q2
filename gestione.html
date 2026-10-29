@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#f6f0dc">
+<title>Gestione serata</title>
+<style>
+:root{--bg:#f6f0dc;--surface:#fffdf5;--ink:#2b2a22;--muted:#6a6550;--line:#ddd3b4;--green:#3b6e2c;--on-green:#fff;--red:#b83a2e;--soft:#e6efd6}
+@media (prefers-color-scheme: dark){:root{--bg:#101a14;--surface:#17241c;--ink:#e9eee3;--muted:#9db0a2;--line:#2a3d31;--green:#8cc98f;--on-green:#0e1a12;--red:#f08a72;--soft:#1f3626;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:16px max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-size:26px;margin:12px 0 0}
+h2{font-size:18px;margin:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:12px}
+label{font-size:13px;font-weight:700;color:var(--muted)}
+input,select{width:100%;min-height:48px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:inherit;padding:10px 12px;font:inherit}
+button{min-height:50px;border:0;border-radius:999px;font:inherit;font-weight:800;padding:12px 20px;cursor:pointer;background:var(--green);color:var(--on-green)}
+button.sec{background:transparent;color:var(--ink);border:1px solid var(--line);font-weight:700}
+button:disabled{opacity:.5}
+.now{background:var(--soft);border-radius:10px;padding:10px 12px}
+.msg{min-height:22px;font-weight:700}
+.msg.ok{color:var(--green)}.msg.err{color:var(--red)}
+.note{font-size:13.5px;color:var(--muted);margin:0}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Gestione serata</h1>
+
+  <section class="card" id="setup" hidden>
+    <h2>Primo accesso</h2>
+    <p class="note">Si fa una volta sola su questo telefono. Il codice resta solo in questo telefono.</p>
+    <div><label for="repo">Nome del repository (utente/nome)</label><input id="repo" autocapitalize="off" autocorrect="off" value="ermestre/treulivi"></div>
+    <div><label for="tok">Codice di accesso GitHub</label><input id="tok" type="password" autocapitalize="off" autocorrect="off" placeholder="github_pat_..."></div>
+    <button id="save" type="button">Salva e continua</button>
+    <div class="msg" id="m1" role="alert"></div>
+  </section>
+
+  <section class="card" id="main" hidden>
+    <h2>Cosa c'è stasera?</h2>
+    <div class="now" id="now">Controllo la serata attuale…</div>
+    <div><label for="pick">Scegli la serata</label>
+      <select id="pick">
+        <option>A Quarara</option><option>Spezzatino</option><option>Panzerotti</option><option>Agnello</option>
+        <option>Porchetta</option><option>Coccia</option><option>Baccalà</option><option value="__altra">Un'altra serata…</option>
+      </select></div>
+    <div id="altraBox" hidden><label for="altra">Nome della nuova serata</label><input id="altra" placeholder="Es. Free ATL"></div>
+    <button id="pub" type="button">Pubblica la serata</button>
+    <button id="none" type="button" class="sec">Stasera nessuna serata</button>
+    <div class="msg" id="m2" role="alert"></div>
+    <p class="note">Dopo aver premuto, la pagina dei soci si aggiorna in uno o due minuti.</p>
+    <button id="out" type="button" class="sec">Dimentica il codice su questo telefono</button>
+  </section>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const FILE = "serata.txt";
+const store = { get:k=>{ try{ return localStorage.getItem(k); }catch(e){ return null; } }, set:(k,v)=>{ try{ localStorage.setItem(k,v); }catch(e){} }, del:k=>{ try{ localStorage.removeItem(k); }catch(e){} } };
+let repo = store.get("tu_repo") || "", tok = store.get("tu_tok") || "", sha = null;
+
+const api = (method, body) => fetch(`https://api.github.com/repos/${repo}/contents/${FILE}`, {
+  method, cache:"no-store",
+  headers:{ "Authorization":"Bearer "+tok, "Accept":"application/vnd.github+json", "X-GitHub-Api-Version":"2022-11-28", ...(body?{"Content-Type":"application/json"}:{}) },
+  body: body ? JSON.stringify(body) : undefined });
+const b64 = s => btoa(unescape(encodeURIComponent(s)));
+const unb64 = s => decodeURIComponent(escape(atob(s.replace(/\n/g,""))));
+const errText = r => r.status===401 ? "Il codice non è valido o è scaduto." : r.status===403 ? "Il codice non ha il permesso di modificare. Rifallo con 'Contents: Read and write'." : r.status===404 ? "Non trovo il repository o il file serata.txt." : r.status===409||r.status===422 ? "Qualcuno ha cambiato il file. Ricarica la pagina e riprova." : "Errore "+r.status+".";
+
+async function load(){
+  $("#setup").hidden = true; $("#main").hidden = false; $("#now").textContent = "Controllo la serata attuale…";
+  try {
+    const r = await api("GET");
+    if (!r.ok) { $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = errText(r); if (r.status===401){ showSetup("Il codice non è valido. Inseriscilo di nuovo."); } return; }
+    const j = await r.json(); sha = j.sha;
+    const t = unb64(j.content).split("\n")[0].trim();
+    $("#now").textContent = t ? "Serata attuale: " + t : "Adesso non c'è nessuna serata.";
+  } catch(e){ $("#now").textContent = ""; $("#m2").className="msg err"; $("#m2").textContent = "Non riesco a collegarmi. Controlla la connessione."; }
+}
+function showSetup(msg){ $("#main").hidden = true; $("#setup").hidden = false; $("#m1").className="msg err"; $("#m1").textContent = msg||""; }
+
+$("#save").onclick = () => {
+  const r = $("#repo").value.trim().replace(/^https?:\/\/github\.com\//,"").replace(/\/$/,""), t = $("#tok").value.trim();
+  if (!/^[\w.-]+\/[\w.-]+$/.test(r)) { $("#m1").className="msg err"; $("#m1").textContent = "Scrivi il repository come utente/nome."; return; }
+  if (!t) { $("#m1").className="msg err"; $("#m1").textContent = "Incolla il codice di accesso."; return; }
+  repo = r; tok = t; store.set("tu_repo", repo); store.set("tu_tok", tok); load();
+};
+$("#pick").onchange = () => { $("#altraBox").hidden = $("#pick").value !== "__altra"; };
+async function publish(text){
+  const m = $("#m2"); m.className = "msg"; m.textContent = "Salvo…"; $("#pub").disabled = $("#none").disabled = true;
+  try {
+    if (!sha) { const g = await api("GET"); if (g.ok) sha = (await g.json()).sha; }
+    const r = await api("PUT", { message: text ? "Serata: "+text : "Nessuna serata", content: b64(text ? text+"\n" : "\n"), ...(sha?{sha}:{}) });
+    if (!r.ok) { m.className="msg err"; m.textContent = errText(r); }
+    else { sha = (await r.json()).content.sha; m.className="msg ok"; m.textContent = text ? "Fatto: stasera c'è "+text+"." : "Fatto: stasera nessuna serata."; $("#now").textContent = text ? "Serata attuale: "+text : "Adesso non c'è nessuna serata."; }
+  } catch(e){ m.className="msg err"; m.textContent = "Non riesco a collegarmi. Controlla la connessione."; }
+  $("#pub").disabled = $("#none").disabled = false;
+}
+$("#pub").onclick = () => { const v = $("#pick").value === "__altra" ? $("#altra").value.trim() : $("#pick").value; if (!v) { $("#m2").className="msg err"; $("#m2").textContent = "Scrivi il nome della serata."; return; } publish(v.replace(/\s+/g," ")); };
+$("#none").onclick = () => publish("");
+$("#out").onclick = () => { store.del("tu_tok"); tok = ""; $("#tok").value = ""; showSetup("Codice dimenticato."); };
+
+if (repo && tok) load(); else showSetup("");
+</script>
+</body>
+</html>
