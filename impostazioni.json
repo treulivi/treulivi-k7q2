@@ -2,7 +2,9 @@
  "whatsapp": "393471545079",
  "coperto": 1,
  "consegna": 1,
- "giorniChiusi": [],
+ "giorniChiusi": [
+  1
+ ],
  "orari": "Chiuso il lunedì. Aperti da martedì a domenica, dalle 19:30",
  "chiusoFino": "2026-11-04"
 }
