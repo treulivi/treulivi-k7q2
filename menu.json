@@ -239,16 +239,5 @@
     "prezzo": 2
    }
   ]
- },
- {
-  "sezione": "Dolci",
-  "piatti": [
-   {
-    "id": "nmvu6uc6hp66",
-    "nome": "Tiramisu",
-    "desc": "Dolce della casa",
-    "prezzo": 5
-   }
-  ]
  }
 ]
